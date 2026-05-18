@@ -1,4 +1,5 @@
 from langchain.tools import tool
+import sqlite3
 
 @tool
 def calculate_max_revenue(tool_input: str) -> float:
@@ -17,3 +18,18 @@ def calculate_max_revenue(tool_input: str) -> float:
     unit_price = float(parts[1].strip())
     
     return inventory * unit_price
+
+
+def get_reorder_data():
+    """Returns re-order eligible SKUs as a list of dicts (Inventory/daily_order_qty < 10)."""
+    conn = sqlite3.connect("grocery_data.db")
+    cursor = conn.execute("""
+        SELECT SKU, Inventory, daily_order_qty, 
+               ROUND(CAST(Inventory AS FLOAT) / daily_order_qty, 2) as Days_of_Stock
+        FROM report 
+        WHERE CAST(Inventory AS FLOAT) / daily_order_qty < 10
+        ORDER BY Days_of_Stock ASC
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+    return [{"SKU": r[0], "Inventory": r[1], "Daily Orders": r[2], "Days of Stock": r[3]} for r in rows]
